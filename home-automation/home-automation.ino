@@ -11,7 +11,7 @@ String ssid = "B68A-57F8"
 String key = "B2F66D4B"
 
 String server="www.heftytips.com"
-String url = "microcontroller.php"
+String url = "heftytips.com/microcontroller.php"
 
 byte dat[5];
                              
@@ -103,16 +103,16 @@ bool cutoffPower(){
 }
 
 
-bool powerOnLoad(char id){
+bool powerOnLoad(int id){
   //power on the load by its specified id
-  //generic function
-
+  digitalWrite(id,HIGH);
+  return true;
 }
 
 bool powerOffLoad(int id){
   //power off the load by its specified id
-  //generic function
-
+  digitalWrite(id,LOW);
+  return true;
 }
 
 void syncLoads(){
@@ -139,13 +139,22 @@ void hubSync(){
   syncLoads();
 }
 
+char parseString(){
+  //convert string response to list
+}
+
+String parseList(){
+  // convert list to string
+}
+
 void getServerStat(){
-  //get details from server (json format)
-  char data = __get(); //pull from server
-//  cVoltage = data['voltage']
-//  cCurrent = data['current']
-//  ActiveLoad = data['aload']
-//  InActiveLoad = data['iload']
+  String request;
+  String __data = __get(request); //pull from server
+  char data = parseString(__data);
+  cVoltage = data[0]
+  cCurrent = data[1]
+  ActiveLoad = data[2]
+  InActiveLoad = data[3]
   
 }
 
@@ -154,18 +163,39 @@ void pushLocalStat(){
   cVoltage = getVoltage();
   cCurrent = getCurrent();
 
-//  char data = {'voltage':voltage,'current': current,'aload': ActiveLoad,'iload': InactiveLoad};
- 
-    __post(); //push to server
+//  char __data = [voltage,current,ActiveLoad,InactiveLoad];
+    String data = parseList(__data);
+    __post(data); //push to server
 }
-char __get(){
+
+String __get(data){
   //helper function for get
-  if(esp8266.available()){
-    
+ esp.println("AT-CIPSTART=\"TCP\",\""+server +"\",80"); //Start a TCP Connection
+  if (esp.find("OK)){
+   Serial.println("TCP Connection Ready");
+  }
+  delay(1000);
+
+  String getRequest = "GET " + url + " HTTP/1.0\r\n" + "Host: " + server + "\r\n" + "Accept: *" + "/" + "*\r\n" + " Content-Length: " + data.length() + "'\r\n" + "Content-Type: application/x-www-form-urlencoded\r\n" + "\r\n" + data;
+  String sendsyn = "AT+CIPSEND="; //determine the number of characters to be sent
+
+  esp.print(sendsyn);
+  esp.println(getRequest.length());
+  delay(500);
+  if(esp.find(">")){
+  Serial.println("Sending...");
+  esp.print(getRequest);
+  if(esp.find("SEND OK")){
+    Serial.println("Packet sent");
+    while (esp.available()){
+      String response = esp.readString();
+      return response;
+    }
+    esp.println("AT+CIPCLOSE");
   }
 }
 
-char __post(data){
+String __post(data){
   //helper function for post
   esp.println("AT-CIPSTART=\"TCP\",\""+server +"\",80"); //Start a TCP Connection
   if (esp.find("OK)){
@@ -185,8 +215,8 @@ char __post(data){
   if(esp.find("SEND OK")){
     Serial.println("Packet sent");
     while (esp.available()){
-      String responce = esp.readString();
-      Serial.println(responce);
+      String response = esp.readString();
+      return response;
     }
     esp.println("AT+CIPCLOSE");
   }
